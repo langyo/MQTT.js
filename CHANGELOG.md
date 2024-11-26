@@ -1,5 +1,288 @@
 
 
+## [5.10.3](https://github.com/mqttjs/MQTT.js/compare/v5.10.2...v5.10.3) (2024-11-26)
+
+
+### Bug Fixes
+
+* add option to reconnect if connack has an error code ([#1948](https://github.com/mqttjs/MQTT.js/issues/1948)) ([fa19586](https://github.com/mqttjs/MQTT.js/commit/fa19586cf0482b007e136e013cf7c9a423b882eb))
+
+## [5.10.2](https://github.com/mqttjs/MQTT.js/compare/v5.10.1...v5.10.2) (2024-11-13)
+
+
+### Features
+
+* **electron-test:** move third hosted broker to self hosted broker ([#1926](https://github.com/mqttjs/MQTT.js/issues/1926)) ([1ca3f9e](https://github.com/mqttjs/MQTT.js/commit/1ca3f9e37f6ef7fe86307e292042c6542ca35241))
+
+## [5.10.1](https://github.com/mqttjs/MQTT.js/compare/v5.10.0...v5.10.1) (2024-08-28)
+
+
+### Bug Fixes
+
+* **browser:** handle `Blob` payloads ([#1930](https://github.com/mqttjs/MQTT.js/issues/1930)) ([86b7959](https://github.com/mqttjs/MQTT.js/commit/86b795983d86847e1da334fd0d30cbd80f92b540))
+
+# [5.10.0](https://github.com/mqttjs/MQTT.js/compare/v5.9.1...v5.10.0) (2024-08-14)
+
+
+### Bug Fixes
+
+* **test:** close all open connections in abstract_client test ([#1917](https://github.com/mqttjs/MQTT.js/issues/1917)) ([661c30a](https://github.com/mqttjs/MQTT.js/commit/661c30aecb8d7531fc052a7770519267067840fb))
+* **types:** unsubscribe options type ([#1921](https://github.com/mqttjs/MQTT.js/issues/1921)) ([18a357c](https://github.com/mqttjs/MQTT.js/commit/18a357ce98c2e7ae053afefaf7c56a0d3a8e62b7))
+
+
+### Features
+
+* add `suback` packet to subscribe callback ([#1923](https://github.com/mqttjs/MQTT.js/issues/1923)) ([93f4482](https://github.com/mqttjs/MQTT.js/commit/93f4482570b6e96d81a5466ea94c3fd7308ff31c))
+* add unsubscribe ack packet to the unsubscribe callback ([#1922](https://github.com/mqttjs/MQTT.js/issues/1922)) ([8bcf304](https://github.com/mqttjs/MQTT.js/commit/8bcf3042a9133acf8d266d73bc67153a69660e05))
+
+## [5.9.1](https://github.com/mqttjs/MQTT.js/compare/v5.9.0...v5.9.1) (2024-08-01)
+
+
+### Bug Fixes
+
+* **browser:** ensure proxy is defined ([ffc9805](https://github.com/mqttjs/MQTT.js/commit/ffc9805a51adf88bded6a1af1c0f66004e9e0f08))
+* **browser:** prevent error `stream.push() after EOF` ([#1915](https://github.com/mqttjs/MQTT.js/issues/1915)) ([b5cc835](https://github.com/mqttjs/MQTT.js/commit/b5cc835fed9bd624c20d5f4f42b15c3cfa4b3fbe)), closes [#1914](https://github.com/mqttjs/MQTT.js/issues/1914)
+* **test:** close open connections ([#1911](https://github.com/mqttjs/MQTT.js/issues/1911)) ([053a7be](https://github.com/mqttjs/MQTT.js/commit/053a7be91f93a0a27c63ca5ed488d9206fdec960))
+
+# [5.9.0](https://github.com/mqttjs/MQTT.js/compare/v5.8.1...v5.9.0) (2024-07-26)
+
+
+### Bug Fixes
+
+* tets hang up ([#1906](https://github.com/mqttjs/MQTT.js/issues/1906)) ([c462530](https://github.com/mqttjs/MQTT.js/commit/c462530d2ec0b61a20cc43f188254bf2b403787a))
+* **types:** add connectAsync overload signature with allowRetries ([#1909](https://github.com/mqttjs/MQTT.js/issues/1909)) ([6b278dc](https://github.com/mqttjs/MQTT.js/commit/6b278dca5a5b82b07835344f3c129ddd5b73e6e8))
+
+
+### Features
+
+* add `forceNativeWebSocket` client option ([#1910](https://github.com/mqttjs/MQTT.js/issues/1910)) ([103d172](https://github.com/mqttjs/MQTT.js/commit/103d1721d68952e536a3704a05a569c95f0a1987)), closes [#1796](https://github.com/mqttjs/MQTT.js/issues/1796) [#1895](https://github.com/mqttjs/MQTT.js/issues/1895)
+
+## [5.8.1](https://github.com/mqttjs/MQTT.js/compare/v5.8.0...v5.8.1) (2024-07-18)
+
+
+### Bug Fixes
+
+* connect after client.end not working ([#1902](https://github.com/mqttjs/MQTT.js/issues/1902)) ([fbe5294](https://github.com/mqttjs/MQTT.js/commit/fbe52949b47378768fd325f01682a766a5965dfe))
+* reschedule pings problem ([#1904](https://github.com/mqttjs/MQTT.js/issues/1904)) ([8e14d3e](https://github.com/mqttjs/MQTT.js/commit/8e14d3eac01f4fcccfc1ee657e0158d0644951ce))
+
+# [5.8.0](https://github.com/mqttjs/MQTT.js/compare/v5.7.3...v5.8.0) (2024-07-05)
+
+
+### Features
+
+* add compatibility with txiki.js ([#1895](https://github.com/mqttjs/MQTT.js/issues/1895)) ([37b08c9](https://github.com/mqttjs/MQTT.js/commit/37b08c99fead5282e38b851ce1006f09521b038c))
+* allow to pass custom timer for keepalive manager ([#1896](https://github.com/mqttjs/MQTT.js/issues/1896)) ([ee81184](https://github.com/mqttjs/MQTT.js/commit/ee811844d07365ca98721be90c4e1c2c1d8623b9))
+
+## [5.7.3](https://github.com/mqttjs/MQTT.js/compare/v5.7.2...v5.7.3) (2024-06-26)
+
+
+### Bug Fixes
+
+* **wechat:** do not ignore path with `wx` protocol ([#1894](https://github.com/mqttjs/MQTT.js/issues/1894)) ([300c0b4](https://github.com/mqttjs/MQTT.js/commit/300c0b4dc5a37d8594a4cb1af5836c095b4d823c)), closes [#1892](https://github.com/mqttjs/MQTT.js/issues/1892)
+
+## [5.7.2](https://github.com/mqttjs/MQTT.js/compare/v5.7.1...v5.7.2) (2024-06-19)
+
+
+### Bug Fixes
+
+* **security:** bump ws@8.17.1 and other audit issues ([#1891](https://github.com/mqttjs/MQTT.js/issues/1891)) ([096baaa](https://github.com/mqttjs/MQTT.js/commit/096baaaa882627554efd4bc9985ce8a5f2dfda5e))
+
+## [5.7.1](https://github.com/mqttjs/MQTT.js/compare/v5.7.0...v5.7.1) (2024-06-18)
+
+
+### Bug Fixes
+
+* suback Error Codes Handling ([#1887](https://github.com/mqttjs/MQTT.js/issues/1887)) ([2a98e5e](https://github.com/mqttjs/MQTT.js/commit/2a98e5e878cad632fe86e738144688ee2b14a7dd))
+
+# [5.7.0](https://github.com/mqttjs/MQTT.js/compare/v5.6.2...v5.7.0) (2024-05-28)
+
+
+### Features
+
+* add `unixSocket` option and `+unix` suffix support to protocol ([#1874](https://github.com/mqttjs/MQTT.js/issues/1874)) ([1004c78](https://github.com/mqttjs/MQTT.js/commit/1004c78db7d6763f21c98fa3db2f12e688ca33ff))
+
+## [5.6.2](https://github.com/mqttjs/MQTT.js/compare/v5.6.1...v5.6.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* prevent url.parse to set `path` option ([#1871](https://github.com/mqttjs/MQTT.js/issues/1871)) ([de0174f](https://github.com/mqttjs/MQTT.js/commit/de0174f033367dde352d1eff339064e704f610e1)), closes [#1870](https://github.com/mqttjs/MQTT.js/issues/1870)
+
+## [5.6.1](https://github.com/mqttjs/MQTT.js/compare/v5.6.0...v5.6.1) (2024-05-17)
+
+
+### Bug Fixes
+
+* update is-browser.ts to account `undefined` navigator ([#1868](https://github.com/mqttjs/MQTT.js/issues/1868)) ([0111a7a](https://github.com/mqttjs/MQTT.js/commit/0111a7af4b71f2a973a712a1f0df6574660d6ec0)), closes [/github.com/mqttjs/MQTT.js/commit/6a03d29b86dc4fe8eae04eaf0f9fc661f1c3d1ea#commitcomment-142114121](https://github.com//github.com/mqttjs/MQTT.js/commit/6a03d29b86dc4fe8eae04eaf0f9fc661f1c3d1ea/issues/commitcomment-142114121) [/github.com/mqttjs/MQTT.js/pull/1868#pullrequestreview-2062507553](https://github.com//github.com/mqttjs/MQTT.js/pull/1868/issues/pullrequestreview-2062507553)
+
+# [5.6.0](https://github.com/mqttjs/MQTT.js/compare/v5.5.6...v5.6.0) (2024-05-13)
+
+
+### Features
+
+* keepalive manager ([#1865](https://github.com/mqttjs/MQTT.js/issues/1865)) ([bad160a](https://github.com/mqttjs/MQTT.js/commit/bad160af2a7b76a5159652e6d3757e7798337261))
+
+## [5.5.6](https://github.com/mqttjs/MQTT.js/compare/v5.5.5...v5.5.6) (2024-05-13)
+
+
+### Bug Fixes
+
+* do not shift pings on 'publish' packets ([#1866](https://github.com/mqttjs/MQTT.js/issues/1866)) ([e4d4663](https://github.com/mqttjs/MQTT.js/commit/e4d4663bcd5f87399b9d7bf101b364cda1c48d0e)), closes [#1863](https://github.com/mqttjs/MQTT.js/issues/1863) [#1861](https://github.com/mqttjs/MQTT.js/issues/1861)
+* **electron:** detect electron context ([#1856](https://github.com/mqttjs/MQTT.js/issues/1856)) ([6a03d29](https://github.com/mqttjs/MQTT.js/commit/6a03d29b86dc4fe8eae04eaf0f9fc661f1c3d1ea))
+* **ws:** ignored `host` option and default hostname in browser ([c6580a6](https://github.com/mqttjs/MQTT.js/commit/c6580a6685821c60a4595986227dba2a615b9958)), closes [#1730](https://github.com/mqttjs/MQTT.js/issues/1730)
+
+## [5.5.5](https://github.com/mqttjs/MQTT.js/compare/v5.5.4...v5.5.5) (2024-04-30)
+
+
+### Bug Fixes
+
+* keepalive issues ([#1855](https://github.com/mqttjs/MQTT.js/issues/1855)) ([4f242f4](https://github.com/mqttjs/MQTT.js/commit/4f242f47bc8568299f04bade8aa4d1d11b939912))
+
+## [5.5.4](https://github.com/mqttjs/MQTT.js/compare/v5.5.3...v5.5.4) (2024-04-26)
+
+
+### Bug Fixes
+
+* allow to use unix sockets in connect ([#1852](https://github.com/mqttjs/MQTT.js/issues/1852)) ([22c97b5](https://github.com/mqttjs/MQTT.js/commit/22c97b5f7536e3e36317c3b28dc0d70557b820ac)), closes [#1040](https://github.com/mqttjs/MQTT.js/issues/1040)
+* **react-native:** process.nextTick is not a function error ([#1849](https://github.com/mqttjs/MQTT.js/issues/1849)) ([f62e207](https://github.com/mqttjs/MQTT.js/commit/f62e207def81b174af83d2e9525cddd1ce960fc3))
+
+## [5.5.3](https://github.com/mqttjs/MQTT.js/compare/v5.5.2...v5.5.3) (2024-04-19)
+
+
+### Bug Fixes
+
+* possible race condition in ping timer ([#1848](https://github.com/mqttjs/MQTT.js/issues/1848)) ([0b7d687](https://github.com/mqttjs/MQTT.js/commit/0b7d687282e6342d5276946dfd4c4d1e0a66ba47)), closes [#1845](https://github.com/mqttjs/MQTT.js/issues/1845)
+* wrong mqttjs version printed ([#1847](https://github.com/mqttjs/MQTT.js/issues/1847)) ([a24cf14](https://github.com/mqttjs/MQTT.js/commit/a24cf14654cb0fa74da1be2671dfaf57071fec40))
+
+## [5.5.2](https://github.com/mqttjs/MQTT.js/compare/v5.5.1...v5.5.2) (2024-04-12)
+
+
+### Bug Fixes
+
+* **react-native:** error Cannot create URL for blob ([#1840](https://github.com/mqttjs/MQTT.js/issues/1840)) ([fc8fafb](https://github.com/mqttjs/MQTT.js/commit/fc8fafbdf5e01edc487192393293b944e77f5920))
+
+## [5.5.1](https://github.com/mqttjs/MQTT.js/compare/v5.5.0...v5.5.1) (2024-04-10)
+
+
+### Bug Fixes
+
+* **browser:** uncaught error when stream is destroyed with error ([380f286](https://github.com/mqttjs/MQTT.js/commit/380f286d46f1c3d7a64c7bd851bbe8d84b797074)), closes [#1839](https://github.com/mqttjs/MQTT.js/issues/1839)
+
+# [5.5.0](https://github.com/mqttjs/MQTT.js/compare/v5.4.0...v5.5.0) (2024-03-18)
+
+
+### Bug Fixes
+
+* **browser:** force closing client doesn't destroy websocket correctly ([#1820](https://github.com/mqttjs/MQTT.js/issues/1820)) ([f9b1204](https://github.com/mqttjs/MQTT.js/commit/f9b1204d7e0a04bb809be6205091fd89281b1e73)), closes [#1817](https://github.com/mqttjs/MQTT.js/issues/1817)
+* expose mqttjs version on `MqttClient.VERSION` ([#1821](https://github.com/mqttjs/MQTT.js/issues/1821)) ([50776a7](https://github.com/mqttjs/MQTT.js/commit/50776a74c73c188f67faf399af90cfe0957a0e1f))
+
+
+### Features
+
+* `timerVariant` option to choose between native and worker timers ([#1818](https://github.com/mqttjs/MQTT.js/issues/1818)) ([547519d](https://github.com/mqttjs/MQTT.js/commit/547519daa8353a2d8a7fe9e4ae715601570b085f))
+
+# [5.4.0](https://github.com/mqttjs/MQTT.js/compare/v5.3.6...v5.4.0) (2024-03-13)
+
+
+### Bug Fixes
+
+* add keepalive test in webworker ([#1807](https://github.com/mqttjs/MQTT.js/issues/1807)) ([8697b06](https://github.com/mqttjs/MQTT.js/commit/8697b06cae3265422620c38b76126381502a9c17))
+* improve some flaky tests ([#1801](https://github.com/mqttjs/MQTT.js/issues/1801)) ([78e8f13](https://github.com/mqttjs/MQTT.js/commit/78e8f139ee0ad61e752421b9e594bea742af9745))
+* print MQTTjs version and environment on constructor ([#1816](https://github.com/mqttjs/MQTT.js/issues/1816)) ([c0a6668](https://github.com/mqttjs/MQTT.js/commit/c0a666887ec313ee82142a825166e5b1d2e668bb))
+* some others flaky tests ([#1808](https://github.com/mqttjs/MQTT.js/issues/1808)) ([f988058](https://github.com/mqttjs/MQTT.js/commit/f9880588244ac35c945302fad474f6c47f27acbc))
+* update worker-timers from 7.0.78 to 7.1.4 ([#1813](https://github.com/mqttjs/MQTT.js/issues/1813)) ([2b75186](https://github.com/mqttjs/MQTT.js/commit/2b751861f2af7b914c3eb84265fb8474428045ec)), closes [#1802](https://github.com/mqttjs/MQTT.js/issues/1802)
+* wrong default export for browser ([#1800](https://github.com/mqttjs/MQTT.js/issues/1800)) ([6237f45](https://github.com/mqttjs/MQTT.js/commit/6237f45f3f455b1b6ae7d339fc8a56a5eff91dc2))
+
+
+### Features
+
+* emit `Keepalive timeout` error and speed up tests using fake timers ([#1798](https://github.com/mqttjs/MQTT.js/issues/1798)) ([5d9bf10](https://github.com/mqttjs/MQTT.js/commit/5d9bf1004ba76098d4ae315fa7a4b44a9d26750b))
+
+## [5.3.6](https://github.com/mqttjs/MQTT.js/compare/v5.3.5...v5.3.6) (2024-02-26)
+
+
+### Bug Fixes
+
+* **browser:** add `navigator` polifilly for wechat mini ([#1796](https://github.com/mqttjs/MQTT.js/issues/1796)) ([c26908a](https://github.com/mqttjs/MQTT.js/commit/c26908a242fa1f573689b03f554bb95d83e61c84)), closes [#1789](https://github.com/mqttjs/MQTT.js/issues/1789)
+* emit `error` event on connack timeout ([#1781](https://github.com/mqttjs/MQTT.js/issues/1781)) ([56e6e23](https://github.com/mqttjs/MQTT.js/commit/56e6e23c0fb775bfd16edf04d6b28f6bbcf05023))
+
+## [5.3.5](https://github.com/mqttjs/MQTT.js/compare/v5.3.4...v5.3.5) (2024-01-23)
+
+
+### Bug Fixes
+
+* bump help-me version to fix vulnerability in glob/inflight ([#1773](https://github.com/mqttjs/MQTT.js/issues/1773)) ([72f99dc](https://github.com/mqttjs/MQTT.js/commit/72f99dcb33b016bced8a2c03ac857c3940ddcda3))
+* keepalive causes a reconnect loop when connection is lost ([#1779](https://github.com/mqttjs/MQTT.js/issues/1779)) ([3da5e84](https://github.com/mqttjs/MQTT.js/commit/3da5e84a158985cbe7bdf60d3a9744b71d98bb56)), closes [#1778](https://github.com/mqttjs/MQTT.js/issues/1778)
+
+## [5.3.4](https://github.com/mqttjs/MQTT.js/compare/v5.3.3...v5.3.4) (2023-12-22)
+
+
+### Bug Fixes
+
+* leaked `close` listener in `startStreamProcess` loop ([#1759](https://github.com/mqttjs/MQTT.js/issues/1759)) ([0c10ef6](https://github.com/mqttjs/MQTT.js/commit/0c10ef680ccc34bbe49948d414f36879d816e4e0))
+* typo in `client.ts` ([#1763](https://github.com/mqttjs/MQTT.js/issues/1763)) ([e3528ac](https://github.com/mqttjs/MQTT.js/commit/e3528ac32d9dc165f8f1238397bd4d02e1990279))
+
+## [5.3.3](https://github.com/mqttjs/MQTT.js/compare/v5.3.2...v5.3.3) (2023-12-05)
+
+
+### Bug Fixes
+
+* don't use worker timers in worker and add web worker tests ([#1755](https://github.com/mqttjs/MQTT.js/issues/1755)) ([38fb6ae](https://github.com/mqttjs/MQTT.js/commit/38fb6ae16073ce31e38dbc1e41a155ad98e04dcc))
+* improve worker tests ([#1757](https://github.com/mqttjs/MQTT.js/issues/1757)) ([4facb18](https://github.com/mqttjs/MQTT.js/commit/4facb18dd9f81bb6af437a6257960e6e878349ad))
+
+## [5.3.2](https://github.com/mqttjs/MQTT.js/compare/v5.3.1...v5.3.2) (2023-12-04)
+
+
+### Bug Fixes
+
+* **browser:** use worker timers to prevent unexpected client close ([#1753](https://github.com/mqttjs/MQTT.js/issues/1753)) ([35448f3](https://github.com/mqttjs/MQTT.js/commit/35448f386687030e7b68bd88f5f4852fbb833c9d))
+* catch all socket errors ([#1752](https://github.com/mqttjs/MQTT.js/issues/1752)) ([a50e85c](https://github.com/mqttjs/MQTT.js/commit/a50e85ccf780621cdf2fd0a0bfcf5575a590f173))
+* prop `window` is not defined in web worker ([#1749](https://github.com/mqttjs/MQTT.js/issues/1749)) ([6591404](https://github.com/mqttjs/MQTT.js/commit/6591404b38c73550157e22f3e57683a634bb919c))
+
+## [5.3.1](https://github.com/mqttjs/MQTT.js/compare/v5.3.0...v5.3.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* improve environment detection in is-browser utility ([#1744](https://github.com/mqttjs/MQTT.js/issues/1744)) ([b094142](https://github.com/mqttjs/MQTT.js/commit/b09414285d5c27cf76a9ff72cbb5ffe8ecec3981))
+* typescript compile error ([2655feb](https://github.com/mqttjs/MQTT.js/commit/2655feb7a182c53bfa5ea7321b4e1a6d5b031311)), closes [#1746](https://github.com/mqttjs/MQTT.js/issues/1746)
+
+# [5.3.0](https://github.com/mqttjs/MQTT.js/compare/v5.2.2...v5.3.0) (2023-11-18)
+
+
+### Features
+
+* **browser:** websockets improvements and bundle optimizations ([#1732](https://github.com/mqttjs/MQTT.js/issues/1732)) ([0928f85](https://github.com/mqttjs/MQTT.js/commit/0928f8575a7b4c717fbd960c802e1dc41b436d0e))
+
+## [5.2.2](https://github.com/mqttjs/MQTT.js/compare/v5.2.1...v5.2.2) (2023-11-14)
+
+
+### Bug Fixes
+
+* add default export ([#1740](https://github.com/mqttjs/MQTT.js/issues/1740)) ([fdb498f](https://github.com/mqttjs/MQTT.js/commit/fdb498fe7ebbdf2be0d1fbcb897f093d4fa40d05))
+
+## [5.2.1](https://github.com/mqttjs/MQTT.js/compare/v5.2.0...v5.2.1) (2023-11-10)
+
+
+### Bug Fixes
+
+* make `import mqtt from 'mqtt'` work in browsers ([#1734](https://github.com/mqttjs/MQTT.js/issues/1734)) ([80e29a9](https://github.com/mqttjs/MQTT.js/commit/80e29a9dc6bb6ad51a7ac968361a550bc1da68cb))
+
+# [5.2.0](https://github.com/mqttjs/MQTT.js/compare/v5.1.4...v5.2.0) (2023-11-09)
+
+
+### Features
+
+* esm version `dist/mqtt.esm.js` and replace `browserify` with `esbuild` ([#1731](https://github.com/mqttjs/MQTT.js/issues/1731)) ([3d6c3be](https://github.com/mqttjs/MQTT.js/commit/3d6c3be60eae8416dbfea1d15a826c0b5fc52c45))
+
+## [5.1.4](https://github.com/mqttjs/MQTT.js/compare/v5.1.3...v5.1.4) (2023-10-30)
+
+
+### Bug Fixes
+
+* crash with React Native ([#1724](https://github.com/mqttjs/MQTT.js/issues/1724)) ([f6123f2](https://github.com/mqttjs/MQTT.js/commit/f6123f22a11a4eb4c34c874b47056cea7ef264a6))
+* unambiguously detect web workers ([#1728](https://github.com/mqttjs/MQTT.js/issues/1728)) ([e44368c](https://github.com/mqttjs/MQTT.js/commit/e44368c0d7541d005ad668d5d44d080e29ca5778))
+
 ## [5.1.3](https://github.com/mqttjs/MQTT.js/compare/v5.1.2...v5.1.3) (2023-10-20)
 
 

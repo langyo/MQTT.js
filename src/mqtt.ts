@@ -4,12 +4,12 @@
  *
  * See LICENSE for more information
  */
-
 import MqttClient from './lib/client'
 import DefaultMessageIdProvider from './lib/default-message-id-provider'
 import UniqueMessageIdProvider from './lib/unique-message-id-provider'
 import Store, { IStore } from './lib/store'
 import connect, { connectAsync } from './lib/connect'
+import KeepaliveManager from './lib/KeepaliveManager'
 
 export const Client = MqttClient
 export {
@@ -20,7 +20,9 @@ export {
 	DefaultMessageIdProvider,
 	UniqueMessageIdProvider,
 	IStore,
+	KeepaliveManager,
 }
 export * from './lib/client'
 export * from './lib/shared'
 export { ReasonCodes } from './lib/handlers/ack'
+export type { Timer } from './lib/get-timer'

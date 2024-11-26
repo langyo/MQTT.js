@@ -1,10 +1,9 @@
 import { assert } from 'chai'
-import * as mqtt from '../src/mqtt'
 import abstractClientTests from './abstract_client'
 import { MqttServer } from './server'
 import serverBuilder from './server_helpers_for_client_tests'
 import getPorts from './helpers/port_list'
-import { ErrorWithReasonCode } from '../src/lib/shared'
+import mqtt, { ErrorWithReasonCode } from '../../src'
 import { after, describe, it } from 'node:test'
 
 const ports = getPorts(1)
@@ -703,10 +702,8 @@ describe('MQTT 5.0', () => {
 				protocolVersion: 5,
 				properties: { authenticationData: Buffer.from([1, 2, 3, 4]) },
 			}
-			console.log('client connecting')
 			const client = mqtt.connect(opts)
 			client.on('error', (error) => {
-				console.log('error hit')
 				assert.strictEqual(
 					error.message,
 					'Packet has no Authentication Method',
@@ -1138,6 +1135,40 @@ describe('MQTT 5.0', () => {
 			})
 		},
 	)
+
+	it('suback handling error codes', function _test(t, done) {
+		serverThatSendsErrors.listen(ports.PORTAND117)
+
+		serverThatSendsErrors.once('client', (serverClient) => {
+			serverClient.on('subscribe', (packet) => {
+				serverClient.suback({
+					messageId: packet.messageId,
+					granted: packet.subscriptions.map((e) => 135),
+				})
+			})
+		})
+
+		const client = mqtt.connect({
+			protocolVersion: 5,
+			port: ports.PORTAND117,
+			host: 'localhost',
+		})
+
+		client.subscribe('$SYS/#', (subErr) => {
+			client.end(true, (endErr) => {
+				serverThatSendsErrors.close((err2) => {
+					if (subErr) {
+						assert.strictEqual(
+							subErr.message,
+							'Subscribe error: Not authorized',
+						)
+						return done(err2 || endErr)
+					}
+					done(new Error('Suback errors do NOT work'))
+				})
+			})
+		})
+	})
 
 	it(
 		'server side disconnect',

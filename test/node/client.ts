@@ -1,4 +1,5 @@
-import * as mqtt from '../src/mqtt'
+import { useFakeTimers } from 'sinon'
+import mqtt from '../../src'
 import { assert } from 'chai'
 import { fork } from 'child_process'
 import path from 'path'
@@ -15,6 +16,9 @@ import { MqttServer } from './server'
 import abstractClientTests from './abstract_client'
 import { IClientOptions } from 'src/lib/client'
 import { describe, it, after } from 'node:test'
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pkgJson = require('../../package.json')
 
 const debug = _debug('mqttjs:client-test')
 
@@ -36,6 +40,10 @@ describe('MqttClient', () => {
 		}
 
 		process.exit(0)
+	})
+
+	it('should have static VERSION set', function _test(t) {
+		assert.equal(mqtt.MqttClient.VERSION, pkgJson.version)
 	})
 
 	abstractClientTests(server, config, ports)
@@ -181,7 +189,7 @@ describe('MqttClient', () => {
 					host: 'localhost',
 					keepalive: 1,
 					connectTimeout: 350,
-					reconnectPeriod: 0,
+					reconnectPeriod: 0, // disable reconnect
 				})
 				client.once('connect', () => {
 					client.publish(
@@ -189,26 +197,36 @@ describe('MqttClient', () => {
 						'fakeMessage',
 						{ qos: 1 },
 						(err) => {
+							// connection closed
 							assert.exists(err)
 							pubCallbackCalled = true
 						},
 					)
 					client.unsubscribe('fakeTopic', (err, result) => {
+						// connection closed
 						assert.exists(err)
 						unsubscribeCallbackCalled = true
 					})
-					setTimeout(() => {
-						client.end((err1) => {
-							assert.strictEqual(
-								pubCallbackCalled && unsubscribeCallbackCalled,
-								true,
-								'callbacks not invoked',
-							)
-							server2.close((err2) => {
-								done(err1 || err2)
+
+					client.once('error', (err) => {
+						assert.equal(err.message, 'Keepalive timeout')
+						const originalFLush = client['_flush']
+						// flush will be called on _cleanUp because of keepalive timeout
+						client['_flush'] = function _flush() {
+							originalFLush.call(client)
+							client.end((err1) => {
+								assert.strictEqual(
+									pubCallbackCalled &&
+										unsubscribeCallbackCalled,
+									true,
+									'callbacks should be invoked with error',
+								)
+								server2.close((err2) => {
+									done(err1 || err2)
+								})
 							})
-						})
-					}, 5000)
+						}
+					})
 				})
 			},
 		)
@@ -218,7 +236,7 @@ describe('MqttClient', () => {
 		it(
 			'should attempt to reconnect once server is down',
 			{
-				timeout: 30000,
+				timeout: 5000,
 			},
 			function _test(t, done) {
 				const args = ['-r', 'ts-node/register']
@@ -344,7 +362,7 @@ describe('MqttClient', () => {
 		it(
 			'should not keep requeueing the first message when offline',
 			{
-				timeout: 2500,
+				timeout: 1000,
 			},
 			function _test(t, done) {
 				const server2 = serverBuilder('mqtt').listen(ports.PORTAND45)
@@ -365,16 +383,22 @@ describe('MqttClient', () => {
 					})
 				})
 
-				setTimeout(() => {
-					if (client.queue.length === 0) {
-						debug('calling final client.end()')
-						client.end(true, (err) => done(err))
-					} else {
-						debug('calling client.end()')
-						// Do not call done. We want to trigger a reconnect here.
-						client.end(true)
+				let reconnections = 0
+
+				client.on('reconnect', () => {
+					reconnections++
+					if (reconnections === 2) {
+						if (client.queue.length === 0) {
+							debug('calling final client.end()')
+							client.end(true, (err) => done(err))
+						} else {
+							debug('calling client.end()')
+							// Do not call done. We want to trigger a reconnect here.
+							client.end(true)
+							done(Error('client queue not empty'))
+						}
 					}
-				}, 2000)
+				})
 			},
 		)
 
@@ -590,6 +614,172 @@ describe('MqttClient', () => {
 			})
 		},
 	)
+
+	describe('connect manually', () => {
+		it(
+			'should not throw an error when publish after second connect',
+			{
+				timeout: 10000,
+			},
+			async function _test(t) {
+				const clock = useFakeTimers({
+					shouldClearNativeTimers: true,
+					toFake: ['setTimeout'],
+				})
+
+				t.after(async () => {
+					clock.restore()
+					if (client) {
+						await client.endAsync(true)
+					}
+				})
+
+				const fail = await new Promise<boolean>((resolveParent) => {
+					let countConnects = 0
+
+					const publishInterval = (
+						repetible: number,
+						timeout: number,
+						callback: (threwError: boolean) => void,
+					): void => {
+						const method = () =>
+							new Promise<boolean>((resolve) => {
+								client.publish('test', 'test', (err) => {
+									if (
+										err?.message.toLocaleLowerCase() ===
+										'client disconnecting'
+									) {
+										resolve(true)
+									} else {
+										resolve(false)
+									}
+								})
+							})
+
+						if (repetible <= 0) {
+							callback(false)
+							return
+						}
+
+						method().then((threwError) => {
+							clock.tick(timeout)
+
+							if (threwError) {
+								callback(true)
+								return
+							}
+
+							publishInterval(repetible - 1, timeout, callback)
+						})
+					}
+
+					client = mqtt.connect(config)
+
+					client.on('connect', () => {
+						++countConnects
+
+						const intervalRepetible = 4
+						const intervalTimeout = 250
+						const connectTimeout =
+							intervalRepetible * intervalTimeout
+
+						publishInterval(
+							intervalRepetible,
+							intervalTimeout,
+							(threwError) => {
+								if (countConnects === 2) {
+									resolveParent(threwError)
+								}
+							},
+						)
+
+						if (countConnects === 1) {
+							clock.setTimeout(() => {
+								client.end(() => client.connect())
+							}, connectTimeout)
+						}
+					})
+				})
+
+				assert.isFalse(fail, 'disconnecting variable was not reset')
+			},
+		)
+
+		it(
+			'reset disconnecting variable to false after disconnect when option reconnectPeriod=0',
+			{
+				timeout: 10000,
+			},
+			async function _test(t) {
+				client = await mqtt.connectAsync({
+					...config,
+					reconnectPeriod: 0,
+				})
+
+				assert.isFalse(
+					client.disconnecting,
+					'disconnecting should be false after connect',
+				)
+
+				const endPromise = client.endAsync()
+
+				assert.isTrue(
+					client.disconnecting,
+					'disconnecting should be true processing end',
+				)
+
+				await endPromise
+
+				assert.isFalse(
+					client.disconnecting,
+					'disconnecting should be false after end',
+				)
+			},
+		)
+
+		it(
+			'reset disconnecting variable to false after disconnect when option manualConnect=true',
+			{
+				timeout: 10000,
+			},
+			async function _test(t) {
+				client = mqtt.connect({
+					...config,
+					manualConnect: true,
+				})
+
+				await new Promise((resolve, reject) => {
+					client
+						.connect()
+						.on('error', (err) => {
+							reject(err)
+						})
+						.once('connect', () => {
+							resolve(undefined)
+						})
+				})
+
+				assert.isFalse(
+					client.disconnecting,
+					'disconnecting should be false after connect',
+				)
+
+				const endPromise = client.endAsync()
+
+				assert.isTrue(
+					client.disconnecting,
+					'disconnecting should be true processing end',
+				)
+
+				await endPromise
+
+				assert.isFalse(
+					client.disconnecting,
+					'disconnecting should be false after end',
+				)
+			},
+		)
+	})
 
 	describe('async methods', () => {
 		it(

@@ -1,57 +1,124 @@
-const test = require('tape')
-const _URL = require('url')
-const mqtt = require('../../') // package.json will provide 'dist/mqtt.min.js'
-// eslint-disable-next-line
-const parsed = _URL.parse(document.URL)
-const isHttps = parsed.protocol === 'https:'
-const port = parsed.port || (isHttps ? 443 : 80)
-const host = parsed.hostname
-const protocol = isHttps ? 'wss' : 'ws'
+import { expect } from '@esm-bundle/chai';
+import mqtt from '../../'; // this will resolve to mqtt/dist/mqtt.esm.js
 
-const client = mqtt.connect({
-	protocolId: 'MQIsdp',
-	protocolVersion: 3,
-	protocol,
-	port,
-	host,
-	log: console.log.bind(console),
-})
-client.on('offline', () => {
-	console.log('client offline')
-})
-client.on('connect', () => {
-	console.log('client connect')
-})
-client.on('reconnect', () => {
-	console.log('client reconnect')
-})
+// needed to test no-esm version /dist/mqtt.js
+/** @type { import('../../src') }*/
+const mqtt2 = window.mqtt
 
-test('MQTT.js browser test', (t) => {
-	t.plan(6)
-	client.on('connect', () => {
-		client.on('message', (topic, msg) => {
-			t.equal(topic, 'hello', 'should match topic')
-			t.equal(msg.toString(), 'Hello World!', 'should match payload')
-			client.end(() => {
-				t.pass('client should close')
-			})
-		})
+// get browser name
+const userAgent = navigator.userAgent.toLowerCase().replace(/ /g, '_').replace(/\//g, '_')
 
-		client.subscribe('hello', (err) => {
-			t.error(err, 'no error on subscribe')
-			if (!err) {
-				client.publish('hello', 'Hello World!', (err2) => {
-					t.error(err2, 'no error on publish')
-				})
+let browser = 'unknown'
+
+if (userAgent.includes('chrome')) {
+	browser = 'chrome'
+} else if (userAgent.includes('firefox')) {
+	browser = 'firefox'
+} else if (userAgent.includes('safari')) {
+	browser = 'safari'
+}
+
+const browserTopic = `test/${browser}`
+console.log('User Agent:', userAgent)
+console.log('Browser:', browser)
+
+function testProto(proto, port, cb = () => { }) {
+	const testTopic = `${browserTopic}/${proto}`
+
+	describe('MQTT.js browser test with ' + proto.toUpperCase(), () => {
+		after(() => {
+			if (client) {
+				client.end(() => {
+					cb()
+					client = null;
+				});
+			} else {
+				cb()
 			}
 		})
+
+		/** @type { import('../../src').MqttClient }*/
+		let client = null;
+
+		it('should connect-publish-subscribe', (done) => {
+			
+			expect(typeof mqtt.Client.VERSION).to.equal('string')
+			
+			client = mqtt.connect(`${proto}://localhost:${port}`, {
+				// log: console.log.bind(console),
+				clientId: `testClient-${browser}-${proto}`,
+			})
+			client.on('offline', () => {
+				console.log('client offline')
+				done(new Error('client offline'))
+			})
+			client.on('connect', () => {
+				console.log('client connect')
+			})
+			client.on('reconnect', () => {
+				console.log('client reconnect')
+			})
+
+			const payload = 'Hello World!'
+			client.on('connect', () => {
+				client.on('message', (topic, msg) => {
+					expect(topic).to.equal(testTopic);
+					expect(msg.toString()).to.equal(payload);
+					client.end(() => {
+						client = null;
+						done();
+					});
+				});
+
+				client.subscribe(testTopic, (err) => {
+					expect(err).to.not.exist;
+					if (!err) {
+						client.publish(testTopic, payload, (err2) => {
+							expect(err2).to.not.exist;
+						});
+					}
+				});
+			});
+
+			client.on('error', (err) => {
+				done(err);
+			});
+		})
+	})
+}
+
+describe('MQTT.js browser tests', () => {
+	it('should work with ESM version', (done) => {
+		expect(mqtt2).to.exist
+		expect(mqtt2.connect).to.be.a('function')
+		expect(mqtt2.Client).to.be.a('function')
+		done()
 	})
 
-	client.on('error', (err) => {
-		t.fail(err, 'no error')
+	it('should work in a Web Worker', (done) => {
+		const worker = new Worker('test/browser/worker.js')
+		let ready = false
+		worker.onmessage = (e) => {
+			if (e.data === 'worker ready') {
+				ready = true
+			} else if(e.data === 'keepalive'){
+				worker.onerror = null
+				// worker.terminate()
+				expect(ready).to.be.true
+				done()
+			 }else {
+				done(Error(e.data))
+			}
+		}
+
+		worker.onerror = (e) => {
+			done(Error(e.message))
+		}
 	})
 
-	client.once('close', () => {
-		t.pass('should emit close')
+	testProto('ws', window.wsPort, () => {
+		testProto('wss', window.wssPort)
 	})
 })
+
+
