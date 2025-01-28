@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue'
-import { connect } from 'mqtt/dist/mqtt.min'
+import mqtt from 'mqtt'
 
 const connected = ref(false)
 
-const client = connect('wss://test.mosquitto.org:8081');
+const client = mqtt.connect('wss://test.mosquitto.org:8081', {
+  log: console.log.bind(console),
+  keepalive: 30,
+});
 
 const messages = ref([])
 

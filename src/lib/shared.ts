@@ -9,7 +9,10 @@ export type GenericCallback<T> = (error?: Error, result?: T) => void
 
 export type VoidCallback = () => void
 
-export type IStream = Duplex
+export type IStream = Duplex & {
+	/** only set on browsers, it's a [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)  */
+	socket?: any
+}
 
 export type StreamBuilder = (
 	client: MqttClient,
@@ -23,6 +26,8 @@ export type PacketHandler = (
 	packet: Packet,
 	done?: DoneCallback,
 ) => void
+
+export type TimerVariant = 'auto' | 'worker' | 'native'
 
 export class ErrorWithReasonCode extends Error {
 	public code: number
@@ -71,3 +76,12 @@ export function applyMixin(
 		}
 	}
 }
+export const nextTick =
+	typeof process?.nextTick === 'function'
+		? process.nextTick
+		: (callback: () => void) => {
+				setTimeout(callback, 0)
+			}
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+export const MQTTJS_VERSION = require('../../package.json').version

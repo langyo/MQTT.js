@@ -21,11 +21,13 @@ const handle: PacketHandler = (client, packet, done) => {
 		})
 		return client
 	}
+
 	client.log('_handlePacket :: emitting packetreceive')
 	client.emit('packetreceive', packet)
 
 	switch (packet.cmd) {
 		case 'publish':
+			// DO NOT SHIFT PING HERE, this would lead to https://github.com/mqttjs/MQTT.js/issues/1861
 			handlePublish(client, packet, done)
 			break
 		case 'puback':
@@ -33,23 +35,28 @@ const handle: PacketHandler = (client, packet, done) => {
 		case 'pubcomp':
 		case 'suback':
 		case 'unsuback':
+			client.reschedulePing()
 			handleAck(client, packet)
 			done()
 			break
 		case 'pubrel':
+			client.reschedulePing()
 			handlePubrel(client, packet, done)
 			break
 		case 'connack':
+			// no need to reschedule ping here as keepalive manager is created after successll connect
+			// (when onConnect is called at the end of handleConnack)
 			handleConnack(client, packet)
 			done()
 			break
 		case 'auth':
+			client.reschedulePing()
 			handleAuth(client, packet)
 			done()
 			break
 		case 'pingresp':
-			// this will be checked in _checkPing client method every keepalive interval
-			client.pingResp = true
+			client.log('_handlePacket :: received pingresp')
+			client.reschedulePing(true)
 			done()
 			break
 		case 'disconnect':

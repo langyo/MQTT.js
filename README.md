@@ -15,6 +15,7 @@ in JavaScript for node.js and the browser.
 - [Upgrade notes](#notes)
 - [Installation](#install)
 - [Example](#example)
+- [React Native](#react-native)
 - [Import Styles](#example)
 - [Command Line Tools](#cli)
 - [API](#api)
@@ -117,6 +118,12 @@ output:
 Hello mqtt
 ```
 
+<a name="example-react-native"></a>
+
+### React Native
+
+MQTT.js can be used in React Native applications. To use it, see the [React Native example](https://github.com/MaximoLiberata/react-native-mqtt.js-example)
+
 If you want to run your own MQTT broker, you can use
 [Mosquitto](http://mosquitto.org) or
 [Aedes-cli](https://github.com/moscajs/aedes-cli), and launch it.
@@ -134,15 +141,15 @@ If you do not want to install a separate broker, you can try using the
 
 ```js
 const mqtt = require("mqtt")  // require mqtt
-const client = mqtt.connect("test.mosquitto.org")  // create a client
+const client = mqtt.connect("mqtt://test.mosquitto.org")  // create a client
 ```
 
 ### ES6 Modules (Import)
 
-#### Aliased wildcard import
+#### Default import
 
 ```js
-import * as mqtt from "mqtt"; // import everything inside the mqtt module and give it the namespace "mqtt"
+import mqtt from "mqtt"; // import namespace "mqtt"
 let client = mqtt.connect("mqtt://test.mosquitto.org"); // create a client
 ```
 
@@ -244,7 +251,7 @@ through a proxy with custom authentication this callback allows you to create yo
 instance of a websocket which will be used in the mqtt client.
 
 ```js
-  const createWebsocket = createWebsocket(url, websocketSubProtocols, options) => {
+  const createWebsocket = (url, websocketSubProtocols, options) => {
     const subProtocols = [
       websocketSubProtocols[0],
       'myCustomSubprotocolOrOAuthToken',
@@ -252,10 +259,10 @@ instance of a websocket which will be used in the mqtt client.
     return new WebSocket(url, subProtocols)
   }
 
-    const connection = await mqtt.connectAsync(<wss url>, {
-      ...,
-      createWebsocket: createWebsocket,
-    });
+  const client = await mqtt.connectAsync(<wss url>, {
+    ...,
+    createWebsocket: createWebsocket,
+  });
 ```
 
 #### Enabling Reconnection with `reconnectPeriod` option
@@ -267,6 +274,13 @@ the final connection when it drops.
 
 The default value is 1000 ms which means it will try to reconnect 1 second
 after losing the connection.
+
+Note that this will only enable reconnects after either a connection timeout, or
+after a successful connection. It will _not_ (by default) enable retrying
+connections that are actively denied with a CONNACK error by the server.
+
+To also enable automatic reconnects for CONNACK errors, set
+`reconnectOnConnackError: true`.
 
 <a name="topicalias"></a>
 
@@ -346,7 +360,9 @@ Connects to the broker specified by the given url and options and
 returns a [Client](#client).
 
 The URL can be on the following protocols: 'mqtt', 'mqtts', 'tcp',
-'tls', 'ws', 'wss', 'wxs', 'alis'. The URL can also be an object as returned by
+'tls', 'ws', 'wss', 'wxs', 'alis'. If you are trying to connect to a unix socket just append the `+unix` suffix to the protocol (ex: `mqtt+unix`). This will set the `unixSocket` property automatically.
+
+The URL can also be an object as returned by
 [`URL.parse()`](http://nodejs.org/api/url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost),
 in that case the two objects are merged, i.e. you can pass a single
 object with both the URL and the connect options.
@@ -381,7 +397,7 @@ events.
 The `Client` class wraps a client connection to an
 MQTT broker over an arbitrary transport method (TCP, TLS,
 WebSocket, ecc).
-`Client` is an [EventEmitter](https://nodejs.dev/en/learn/the-nodejs-event-emitter/) that has it's own [events](#events)
+`Client` is an [EventEmitter](https://nodejs.org/en/learn/asynchronous-work/the-nodejs-event-emitter) that has it's own [events](#events)
 
 `Client` automatically handles the following:
 
@@ -406,6 +422,8 @@ The arguments are:
     offline
   - `reconnectPeriod`: `1000` milliseconds, interval between two
     reconnections. Disable auto reconnect by setting to `0`.
+  - `reconnectOnConnackError`: `false`, whether to also reconnect if a CONNACK
+    is received with an error.
   - `connectTimeout`: `30 * 1000` milliseconds, time to wait before a
     CONNACK is received
   - `username`: the username required by your broker, if any
@@ -457,6 +475,15 @@ The arguments are:
   - `messageIdProvider`: custom messageId provider. when `new UniqueMessageIdProvider()` is set, then non conflict messageId is provided.
   - `log`: custom log function. Default uses [debug](https://www.npmjs.com/package/debug) package.
   - `manualConnect`: prevents the constructor to call `connect`. In this case after the `mqtt.connect` is called you should call `client.connect` manually.
+  - `timerVariant`: defaults to `auto`, which tries to determine which timer is most appropriate for you environment, if you're having detection issues, you can set it to `worker` or `native`. If none suits you, you can pass a timer object with set and clear properties:
+    ```js
+    timerVariant: {
+      set: (func, timer) => setInterval(func, timer),
+      clear: (id) => clearInterval(id)
+    }
+    ```
+  - `forceNativeWebSocket`: set to true if you're having detection issues (i.e. the `ws does not work in the browser` exception) to force the use of native WebSocket. It is important to note that if set to true for the first client created, then all the clients will use native WebSocket. And conversely, if not set or set to false, all will use the detection result.
+  - `unixSocket`: if you want to connect to a unix socket, set this to true
 
 In case mqtts (mqtt over tls) is required, the `options` object is passed through to [`tls.connect()`](http://nodejs.org/api/tls.html#tls_tls_connect_options_callback). If using a **self-signed certificate**, set `rejectUnauthorized: false`. However, be cautious as this exposes you to potential man in the middle attacks and isn't recommended for production.
 
@@ -595,15 +622,16 @@ Publish a message to a topic
     - `subscriptionIdentifier`: representing the identifier of the subscription `number`,
     - `contentType`: String describing the content of the Application Message `string`
   - `cbStorePut` - `function ()`, fired when message is put into `outgoingStore` if QoS is `1` or `2`.
-- `callback` - `function (err)`, fired when the QoS handling completes,
+- `callback` - `function (err, packet)`, fired when the QoS handling completes,
   or at the next tick if QoS 0. An error occurs if client is disconnecting.
 
 <a name="publish-async"></a>
 
 ### mqtt.Client#publishAsync(topic, message, [options])
 
-Async [`publish`](#publish). Returns a `Promise<void>`.
+Async [`publish`](#publish). Returns a `Promise<Packet | undefined>`.
 
+A packet is anything that has a `messageId` property.
 ---
 
 <a name="subscribe"></a>
@@ -635,7 +663,7 @@ Subscribe to a topic or topics
 
 ### mqtt.Client#subscribeAsync(topic/topic array/topic object, [options])
 
-Async [`subscribe`](#subscribe). Returns a `Promise<granted[]>`.
+Async [`subscribe`](#subscribe). Returns a `Promise<ISubscriptionGrant[]>`.
 
 ---
 
@@ -801,13 +829,47 @@ The callback is called when the packet has been removed.
 Closes the Store.
 
 <a name="browser"></a>
+<a name="webpack"></a>
+<a name="vite"></a>
 
 ## Browser
 
-MQTT.js is bundled using [browserify](http://browserify.org/). You can find the browser build in the `dist` folder.
+> [!IMPORTANT]
+> The only protocol supported in browsers is MQTT over WebSockets, so you must use `ws://` or `wss://` protocols.
+
+While the [ws](https://www.npmjs.com/package/ws) module is used in NodeJS, [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) is used in browsers. This is totally transparent to users except for the following:
+
+- The `wsOption` is not supported in browsers.
+- Browsers doesn't allow to catch many WebSocket errors for [security reasons](https://stackoverflow.com/a/31003057) as:
+
+  > Access to this information could allow a malicious Web page to gain information about your network, so they require browsers report all connection-time errors in an indistinguishable way.
+
+  So listening for `client.on('error')` may not catch all the errors you would get in NodeJS env.
+
+### Bundle
+
+MQTT.js is bundled using [esbuild](https://esbuild.github.io/). It is tested working with all bundlers like Webpack, Vite and React.
+
+You can find all mqtt bundles versions in `dist` folder:
+
+- `mqtt.js` - iife format, not minified
+- `mqtt.min.js` - iife format, minified
+- `mqtt.esm.js` - esm format minified
+
+Starting from MQTT.js > 5.2.0 you can import mqtt in your code like this:
 
 ```js
+import mqtt from 'mqtt'
+```
+
+This will be automatically handled by your bundler.
+
+Otherwise you can choose to use a specific bundle like:
+
+```js
+import * as mqtt from 'mqtt/dist/mqtt'
 import * as mqtt from 'mqtt/dist/mqtt.min'
+import mqtt from 'mqtt/dist/mqtt.esm'
 ```
 
 <a name="cdn"></a>
@@ -817,28 +879,6 @@ import * as mqtt from 'mqtt/dist/mqtt.min'
 The MQTT.js bundle is available through <http://unpkg.com>, specifically
 at <https://unpkg.com/mqtt/dist/mqtt.min.js>.
 See <http://unpkg.com> for the full documentation on version ranges.
-
-**Be sure to only use this bundle with `ws` or `wss` URLs in the browser. Others URL types will likey fail**
-
-<a name="webpack"></a>
-
-### Webpack
-
-If you are using webpack simply import MQTT.js like this:
-
-```js
-import * as mqtt from 'mqtt/dist/mqtt.min'
-```
-
-<a name="vite"></a>
-
-### Vite
-
-If you are using vite simply import MQTT.js like this:
-
-```js
-import * as mqtt from 'mqtt/dist/mqtt.min'
-```
 
 <a name="qos"></a>
 
@@ -874,8 +914,12 @@ const client = connect('mqtt://test.mosquitto.org')
 Supports [WeChat Mini Program](https://mp.weixin.qq.com/). Use the `wxs` protocol. See [the WeChat docs](https://mp.weixin.qq.com/debug/wxadoc/dev/api/network-socket.html).
 
 ```js
+import 'abortcontroller-polyfill/dist/abortcontroller-polyfill-only' // import before mqtt.
+import 'esbuild-plugin-polyfill-node/polyfills/navigator'
 const mqtt = require("mqtt");
-const client = mqtt.connect("wxs://test.mosquitto.org");
+const client = mqtt.connect("wxs://test.mosquitto.org", {
+  timerVariant: 'native' // more info ref issue: #1797
+});
 ```
 
 ### Ali Mini Program

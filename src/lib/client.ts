@@ -19,7 +19,6 @@ import DefaultMessageIdProvider, {
 	IMessageIdProvider,
 } from './default-message-id-provider'
 import { DuplexOptions, Writable } from 'readable-stream'
-import reInterval from 'reinterval'
 import clone from 'rfdc/default'
 import * as validations from './validations'
 import _debug from 'debug'
@@ -32,28 +31,28 @@ import {
 	ErrorWithReasonCode,
 	GenericCallback,
 	IStream,
+	MQTTJS_VERSION,
 	StreamBuilder,
+	TimerVariant,
 	VoidCallback,
+	nextTick,
 } from './shared'
 import TopicAliasSend from './topic-alias-send'
 import { TypedEventEmitter } from './TypedEmitter'
-
-const nextTick = process
-	? process.nextTick
-	: (callback: () => void) => {
-			setTimeout(callback, 0)
-	  }
+import KeepaliveManager from './KeepaliveManager'
+import isBrowser, { isWebWorker } from './is-browser'
+import { Timer } from './get-timer'
 
 const setImmediate =
-	global.setImmediate ||
-	((...args: any[]) => {
+	globalThis.setImmediate ||
+	(((...args: any[]) => {
 		const callback = args.shift()
 		nextTick(() => {
 			callback(...args)
 		})
-	})
+	}) as typeof globalThis.setImmediate)
 
-const defaultConnectOptions = {
+const defaultConnectOptions: IClientOptions = {
 	keepalive: 60,
 	reschedulePings: true,
 	protocolId: 'MQTT',
@@ -63,17 +62,10 @@ const defaultConnectOptions = {
 	clean: true,
 	resubscribe: true,
 	writeCache: true,
+	timerVariant: 'auto',
 }
 
-const socketErrors = [
-	'ECONNREFUSED',
-	'EADDRINUSE',
-	'ECONNRESET',
-	'ENOTFOUND',
-	'ETIMEDOUT',
-]
-
-export type MqttProtocol =
+export type BaseMqttProtocol =
 	| 'wss'
 	| 'ws'
 	| 'mqtt'
@@ -84,6 +76,11 @@ export type MqttProtocol =
 	| 'wxs'
 	| 'ali'
 	| 'alis'
+
+// create a type that allows all MqttProtocol + `+unix` string
+export type MqttProtocolWithUnix = `${BaseMqttProtocol}+unix`
+
+export type MqttProtocol = BaseMqttProtocol | MqttProtocolWithUnix
 
 export type StorePutCallback = () => void
 
@@ -151,7 +148,9 @@ export interface IClientOptions extends ISecureClientOptions {
 	host?: string
 	/** @deprecated use `host instead */
 	hostname?: string
-	/** Websocket `path` added as suffix */
+	/** Set to true if the connection is to a unix socket */
+	unixSocket?: boolean
+	/** Websocket `path` added as suffix or Unix socket path when `unixSocket` option is true */
 	path?: string
 	/** The `MqttProtocol` to use */
 	protocol?: MqttProtocol
@@ -163,6 +162,12 @@ export interface IClientOptions extends ISecureClientOptions {
 	 * 1000 milliseconds, interval between two reconnections
 	 */
 	reconnectPeriod?: number
+	/**
+	 * Set to true to enable the reconnect period to apply if the initial
+	 * connection is denied with an error in the CONNACK packet, such as with an
+	 * authentication error.
+	 */
+	reconnectOnConnackError?: boolean
 	/**
 	 * 30 * 1000 milliseconds, time to wait before a CONNACK is received
 	 */
@@ -261,7 +266,7 @@ export interface IClientOptions extends ISecureClientOptions {
 	 */
 	clean?: boolean
 	/**
-	 *  10 seconds, set to 0 to disable
+	 *  60 seconds, set to 0 to disable
 	 */
 	keepalive?: number
 	/**
@@ -278,6 +283,15 @@ export interface IClientOptions extends ISecureClientOptions {
 	will?: IConnectPacket['will']
 	/** see `connect` packet: https://github.com/mqttjs/mqtt-packet/blob/master/types/index.d.ts#L65 */
 	properties?: IConnectPacket['properties']
+	/**
+	 * @description 'auto', set to 'native' or 'worker' if you're having issues with 'auto' detection
+	 * or pass a custom timer object
+	 */
+	timerVariant?: TimerVariant | Timer
+	/**
+	 * false, set to true to force the use of native WebSocket if you're having issues with the detection
+	 */
+	forceNativeWebSocket?: boolean
 }
 
 export interface IClientPublishOptions {
@@ -315,7 +329,7 @@ export interface IClientReconnectOptions {
 }
 export interface IClientSubscribeProperties {
 	/*
-	 *  MQTT 5.0 properies object of subscribe
+	 *  MQTT 5.0 properties object of subscribe
 	 * */
 	properties?: ISubscribePacket['properties']
 }
@@ -362,12 +376,20 @@ export type ISubscriptionMap = {
 	resubscribe?: boolean
 }
 
+export interface IClientUnsubscribeProperties {
+	/*
+	 *  MQTT 5.0 properties object for unsubscribe
+	 * */
+	properties?: IUnsubscribePacket['properties']
+}
+
 export { IConnackPacket, IDisconnectPacket, IPublishPacket, Packet }
 export type OnConnectCallback = (packet: IConnackPacket) => void
 export type OnDisconnectCallback = (packet: IDisconnectPacket) => void
 export type ClientSubscribeCallback = (
 	err: Error | null,
-	granted: ISubscriptionGrant[],
+	granted?: ISubscriptionGrant[],
+	packet?: ISubackPacket,
 ) => void
 export type OnMessageCallback = (
 	topic: string,
@@ -377,7 +399,10 @@ export type OnMessageCallback = (
 export type OnPacketCallback = (packet: Packet) => void
 export type OnCloseCallback = () => void
 export type OnErrorCallback = (error: Error | ErrorWithReasonCode) => void
-export type PacketCallback = (error?: Error, packet?: Packet) => any
+export type PacketCallback = (
+	error?: Error | ErrorWithReasonCode,
+	packet?: Packet,
+) => any
 export type CloseCallback = (error?: Error) => void
 
 export interface MqttClientEventCallbacks {
@@ -402,6 +427,8 @@ export interface MqttClientEventCallbacks {
  * (see Connection#connect)
  */
 export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbacks> {
+	public static VERSION = MQTTJS_VERSION
+
 	/** Public fields */
 
 	/** It's true when client is connected to broker */
@@ -427,8 +454,6 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 
 	public messageIdProvider: IMessageIdProvider
 
-	public pingResp: boolean
-
 	public outgoing: Record<
 		number,
 		{ volatile: boolean; cb: (err: Error, packet?: Packet) => void }
@@ -438,8 +463,12 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 
 	public noop: (error?: any) => void
 
-	public pingTimer: any
+	public keepaliveManager: KeepaliveManager
 
+	/**
+	 * The connection to the Broker. In browsers env this also have `socket` property
+	 * set to the `WebSocket` instance.
+	 */
 	public stream: IStream
 
 	public queue: { packet: Packet; cb: PacketCallback }[]
@@ -497,6 +526,17 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 		this.log = this.options.log || _debug('mqttjs:client')
 		this.noop = this._noop.bind(this)
 
+		this.log('MqttClient :: version:', MqttClient.VERSION)
+
+		if (isWebWorker) {
+			this.log('MqttClient :: environment', 'webworker')
+		} else {
+			this.log(
+				'MqttClient :: environment',
+				isBrowser ? 'browser' : 'node',
+			)
+		}
+
 		this.log('MqttClient :: options.protocol', options.protocol)
 		this.log(
 			'MqttClient :: options.protocolVersion',
@@ -531,7 +571,7 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 				? options.customHandleAcks
 				: (...args) => {
 						args[3](null, 0)
-				  }
+					}
 
 		// Disable pre-generated write cache if requested. Will allocate buffers on-the-fly instead. WARNING: This can affect write performance
 		if (!this.options.writeCache) {
@@ -559,8 +599,8 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 		// map of a subscribe messageId and a topic
 		this.messageIdToTopic = {}
 
-		// Ping timer, setup in _setupPingTimer
-		this.pingTimer = null
+		// Keepalive manager, setup in _setupKeepaliveManager
+		this.keepaliveManager = null
 		// Is the client connected?
 		this.connected = false
 		// Are we disconnecting?
@@ -647,11 +687,7 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 			this.log('close :: clearing connackTimer')
 			clearTimeout(this.connackTimer)
 
-			this.log('close :: clearing ping timer')
-			if (this.pingTimer !== null) {
-				this.pingTimer.clear()
-				this.pingTimer = null
-			}
+			this._destroyKeepaliveManager()
 
 			if (this.topicAliasRecv) {
 				this.topicAliasRecv.clear()
@@ -710,11 +746,19 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 	public connect() {
 		const writable = new Writable()
 		const parser = mqttPacket.parser(this.options)
+
 		let completeParse = null
 		const packets = []
 
 		this.log('connect :: calling method to clear reconnect')
 		this._clearReconnect()
+
+		if (this.disconnected && !this.reconnecting) {
+			this.incomingStore = this.options.incomingStore || new Store()
+			this.outgoingStore = this.options.outgoingStore || new Store()
+			this.disconnecting = false
+			this.disconnected = false
+		}
 
 		this.log(
 			'connect :: using streamBuilder provided to client to create stream',
@@ -761,7 +805,9 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 
 		const streamErrorHandler = (error) => {
 			this.log('streamErrorHandler :: error', error.message)
-			if (socketErrors.includes(error.code)) {
+			// error.code will only be set on NodeJS env, browser don't allow to detect errors on sockets
+			// also emitting errors on browsers seems to create issues
+			if (error.code) {
 				// handle error
 				this.log('streamErrorHandler :: emitting error')
 				this.emit('error', error)
@@ -857,6 +903,7 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 			this.log(
 				'!!connectTimeout hit!! Calling _cleanUp with force `true`',
 			)
+			this.emit('error', new Error('connack timeout'))
 			this._cleanUp(true)
 		}, this.options.connectTimeout)
 
@@ -1208,7 +1255,7 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 						}
 					}
 
-					callback(err, subs)
+					callback(err, subs, packet2)
 				},
 			}
 			this.log('subscribe :: call _sendPacket')
@@ -1267,7 +1314,7 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 	public unsubscribe(topic: string | string[]): MqttClient
 	public unsubscribe(
 		topic: string | string[],
-		opts?: IClientSubscribeOptions,
+		opts?: IClientUnsubscribeProperties,
 	): MqttClient
 	public unsubscribe(
 		topic: string | string[],
@@ -1275,12 +1322,12 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 	): MqttClient
 	public unsubscribe(
 		topic: string | string[],
-		opts?: IClientSubscribeOptions,
+		opts?: IClientUnsubscribeProperties,
 		callback?: PacketCallback,
 	): MqttClient
 	public unsubscribe(
 		topic: string | string[],
-		opts?: IClientSubscribeOptions | PacketCallback,
+		opts?: IClientUnsubscribeProperties | PacketCallback,
 		callback?: PacketCallback,
 	): MqttClient {
 		if (typeof topic === 'string') {
@@ -1362,11 +1409,11 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 	): Promise<Packet | undefined>
 	public unsubscribeAsync(
 		topic: string | string[],
-		opts?: IClientSubscribeOptions,
+		opts?: IClientUnsubscribeProperties,
 	): Promise<Packet | undefined>
 	public unsubscribeAsync(
 		topic: string | string[],
-		opts?: IClientSubscribeOptions,
+		opts?: IClientUnsubscribeProperties,
 	): Promise<Packet | undefined> {
 		return new Promise((resolve, reject) => {
 			this.unsubscribe(topic, opts, (err, packet) => {
@@ -1440,6 +1487,11 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 			})
 			if (this._deferredReconnect) {
 				this._deferredReconnect()
+			} else if (
+				this.options.reconnectPeriod === 0 ||
+				this.options.manualConnect
+			) {
+				this.disconnecting = false
 			}
 		}
 
@@ -1759,19 +1811,15 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 			})
 		}
 
-		if (!this.disconnecting) {
+		if (!this.disconnecting && !this.reconnecting) {
 			this.log(
-				'_cleanUp :: client not disconnecting. Clearing and resetting reconnect.',
+				'_cleanUp :: client not disconnecting/reconnecting. Clearing and resetting reconnect.',
 			)
 			this._clearReconnect()
 			this._setupReconnect()
 		}
 
-		if (this.pingTimer !== null) {
-			this.log('_cleanUp :: clearing pingTimer')
-			this.pingTimer.clear()
-			this.pingTimer = null
-		}
+		this._destroyKeepaliveManager()
 
 		if (done && !this.connected) {
 			this.log(
@@ -1908,9 +1956,6 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 		this.log('_writePacket :: emitting `packetsend`')
 
 		this.emit('packetsend', packet)
-
-		// When writing a packet, reschedule the ping timer
-		this._shiftPingInterval()
 
 		this.log('_writePacket :: writing to stream')
 		const result = mqttPacket.writeToStream(
@@ -2058,57 +2103,60 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 	}
 
 	/**
-	 * _setupPingTimer - setup the ping timer
-	 *
-	 * @api private
+	 * _setupKeepaliveManager - setup the keepalive manager
 	 */
-	private _setupPingTimer() {
+	private _setupKeepaliveManager() {
 		this.log(
-			'_setupPingTimer :: keepalive %d (seconds)',
+			'_setupKeepaliveManager :: keepalive %d (seconds)',
 			this.options.keepalive,
 		)
 
-		if (!this.pingTimer && this.options.keepalive) {
-			this.pingResp = true
-			this.pingTimer = reInterval(() => {
-				this._checkPing()
-			}, this.options.keepalive * 1000)
-		}
-	}
-
-	/**
-	 * _shiftPingInterval - reschedule the ping interval
-	 *
-	 * @api private
-	 */
-	private _shiftPingInterval() {
-		if (
-			this.pingTimer &&
-			this.options.keepalive &&
-			this.options.reschedulePings
-		) {
-			this.pingTimer.reschedule(this.options.keepalive * 1000)
-		}
-	}
-
-	/**
-	 * _checkPing - check if a pingresp has come back, and ping the server again
-	 *
-	 * @api private
-	 */
-	private _checkPing() {
-		this.log('_checkPing :: checking ping...')
-		if (this.pingResp) {
-			this.log(
-				'_checkPing :: ping response received. Clearing flag and sending `pingreq`',
+		if (!this.keepaliveManager && this.options.keepalive) {
+			this.keepaliveManager = new KeepaliveManager(
+				this,
+				this.options.timerVariant,
 			)
-			this.pingResp = false
-			this._sendPacket({ cmd: 'pingreq' })
-		} else {
-			// do a forced cleanup since socket will be in bad shape
-			this.log('_checkPing :: calling _cleanUp with force true')
-			this._cleanUp(true)
 		}
+	}
+
+	private _destroyKeepaliveManager() {
+		if (this.keepaliveManager) {
+			this.log('_destroyKeepaliveManager :: destroying keepalive manager')
+			this.keepaliveManager.destroy()
+			this.keepaliveManager = null
+		}
+	}
+
+	/**
+	 * Reschedule the ping interval
+	 */
+	public reschedulePing(force = false) {
+		if (
+			this.keepaliveManager &&
+			this.options.keepalive &&
+			(force || this.options.reschedulePings)
+		) {
+			this._reschedulePing()
+		}
+	}
+
+	/**
+	 * Mostly needed for test purposes
+	 */
+	private _reschedulePing() {
+		this.log('_reschedulePing :: rescheduling ping')
+		this.keepaliveManager.reschedule()
+	}
+
+	public sendPing() {
+		this.log('_sendPing :: sending pingreq')
+		this._sendPacket({ cmd: 'pingreq' })
+	}
+
+	public onKeepaliveTimeout() {
+		this.emit('error', new Error('Keepalive timeout'))
+		this.log('onKeepaliveTimeout :: calling _cleanUp with force true')
+		this._cleanUp(true)
 	}
 
 	/**
@@ -2173,7 +2221,7 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 
 		this.connackPacket = packet
 		this.messageIdProvider.clear()
-		this._setupPingTimer()
+		this._setupKeepaliveManager()
 
 		this.connected = true
 
@@ -2267,9 +2315,9 @@ export default class MqttClient extends TypedEventEmitter<MqttClientEventCallbac
 						break
 					}
 				}
+				this.removeListener('close', remove)
 				if (allProcessed) {
 					clearStoreProcessing()
-					this.removeListener('close', remove)
 					this._invokeAllStoreProcessingQueue()
 					this.emit('connect', packet)
 				} else {
