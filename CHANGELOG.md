@@ -1,5 +1,7 @@
 # Changelog
 
+## [5.15.1](https://github.com/mqttjs/MQTT.js/compare/v5.15.0...v5.15.1) (2026-03-24)
+
 # [5.15.0](/compare/v5.14.1...v5.15.0) (2026-02-02)
 
 
